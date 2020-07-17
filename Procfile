@@ -1,0 +1,1 @@
+worker: java -jar target/telegrambotavia-1.0.jar me.decentos.Main
