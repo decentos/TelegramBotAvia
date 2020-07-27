@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "data": {
+    "LON": {
+      "0": {
+        "price": 11567,
+        "airline": "SU",
+        "flight_number": 2582,
+        "departure_at": "2020-10-10T13:40:00Z",
+        "return_at": "2020-10-14T12:40:00Z",
+        "expires_at": "2020-07-30T13:15:14Z"
+      }
+    }
+  },
+  "error": null,
+  "currency": "rub"
+}
