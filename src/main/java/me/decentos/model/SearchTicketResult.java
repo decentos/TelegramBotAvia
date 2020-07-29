@@ -6,13 +6,13 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CheapestTicket {
+public class SearchTicketResult {
 
     @JsonProperty(value = "success")
     private boolean success;
 
     @JsonProperty(value = "data")
-    private String data;
+    private Object data;
 
     @JsonProperty(value = "error")
     private boolean error;
