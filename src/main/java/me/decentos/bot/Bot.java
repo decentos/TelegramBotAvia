@@ -60,40 +60,74 @@ public class Bot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         Long chatId = update.getMessage().getChatId();
+        String text = update.getMessage().getText();
+        SearchDto searchDto = search.get(chatId);
 
+        if (update.getMessage().getText().equals("Начать новый поиск")) {
+            execute(prepareMessageConfig(chatId, "Введите город отправления:"));
+        } else if (searchDto == null || searchDto.getCityTo() == null) {
+            fillCityInfo(chatId, text, searchDto);
+        } else if (searchDto.getReturnDate() == null) {
+            fillDateInfo(chatId, text, searchDto);
+        }
+    }
+
+    @SneakyThrows
+    private void fillCityInfo(Long chatId, String text, SearchDto searchDto) {
         Map<String, String> urlParams = new HashMap<>();
-        urlParams.put("CITY", update.getMessage().getText());
-
+        urlParams.put("CITY", text);
         ResponseEntity<CityInfo[]> cityInfoResponse = restTemplate.getForEntity(cityInfoTemplate, CityInfo[].class, urlParams);
         CityInfo[] cities = cityInfoResponse.getBody();
 
-        if (search.get(chatId) != null && search.get(chatId).getCityTo() != null) search.remove(chatId);
-
         if (cities == null || cities.length == 0) {
             execute(prepareMessageConfig(chatId, "Город введен неверно или в нем отсутствует аэропорт.\nПожалуйста, повторите попытку:"));
-        } else if (search.get(chatId) == null) {
-            search.put(chatId, new SearchDto(cities[0].getName(), cities[0].getCode(), null, null, null, null));
-
-        } else {
-            SearchDto searchDto = search.get(chatId);
+        } else if (searchDto == null) {
+            searchDto = new SearchDto();
+            searchDto.setCityFrom(cities[0].getName());
+            searchDto.setCityFromCode(cities[0].getCode());
+            search.put(chatId, searchDto);
+            execute(prepareMessageConfig(chatId, "Введите город назначения:"));
+        } else if (searchDto.getCityTo() == null) {
+            searchDto = search.get(chatId);
             searchDto.setCityTo(cities[0].getName());
             searchDto.setCityToCode(cities[0].getCode());
             search.put(chatId, searchDto);
+            execute(prepareMessageConfig(chatId, "Введите дату отправления в формате YYYY-MM-DD:"));
+        }
+    }
 
-            TicketInfo cheapestTicket = findTicket(searchDto, cheapestTicketTemplate);
-            TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
+    @SneakyThrows
+    private void fillDateInfo(Long chatId, String text, SearchDto searchDto) {
+        if (searchDto.getDepartDate() == null) {
+            searchDto = search.get(chatId);
+            searchDto.setDepartDate(text);
+            search.put(chatId, searchDto);
+            execute(prepareMessageConfig(chatId, "Введите дату возвращения в формате YYYY-MM-DD:"));
+        } else {
+            searchDto = search.get(chatId);
+            searchDto.setReturnDate(text);
+            search.put(chatId, searchDto);
+            findTickets(chatId, searchDto);
+        }
+    }
 
-            if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
-                execute(prepareMessageConfig(chatId, "По данному запросу билеты не найдены!\nПожалуйста, повторите попытку с другими параметрами:"));
-            } else {
-                execute(prepareMessageConfig(chatId, cheapestTicket.toString()));
+    @SneakyThrows
+    private void findTickets(Long chatId, SearchDto searchDto) {
+        TicketInfo cheapestTicket = findTicket(searchDto, cheapestTicketTemplate);
+        TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
+        search.remove(chatId);
 
-                if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
-                        && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
-                    execute(prepareMessageConfig(chatId, cheapestNonStopTicket.toString()));
-                }
-                execute(prepareMessageConfig(chatId, String.format("https://www.aviasales.ru/search/%s0109%s05091", searchDto.getCityFromCode(), searchDto.getCityToCode())));
+        if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
+            execute(prepareMessageConfig(chatId, "По данному запросу билеты не найдены!\nПожалуйста, повторите попытку с другими параметрами:"));
+        } else {
+            execute(prepareMessageConfig(chatId, cheapestTicket.toString()));
+
+            if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
+                    && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
+                execute(prepareMessageConfig(chatId, cheapestNonStopTicket.toString()));
             }
+            String url = parseUrl(searchDto);
+            execute(prepareMessageConfig(chatId, url));
         }
     }
 
@@ -101,8 +135,8 @@ public class Bot extends TelegramLongPollingBot {
         Map<String, String> codeParams = new HashMap<>();
         codeParams.put("CITY_FROM_CODE", searchDto.getCityFromCode());
         codeParams.put("CITY_TO_CODE", searchDto.getCityToCode());
-        codeParams.put("DEPART_DATE", "2020-09-01");
-        codeParams.put("RETURN_DATE", "2020-09-05");
+        codeParams.put("DEPART_DATE", searchDto.getDepartDate());
+        codeParams.put("RETURN_DATE", searchDto.getReturnDate());
         codeParams.put("TOKEN", token);
 
         ResponseEntity<SearchTicketResult> searchTicketResultResponse = restTemplate.getForEntity(template, SearchTicketResult.class, codeParams);
@@ -131,6 +165,10 @@ public class Bot extends TelegramLongPollingBot {
                 .stream()
                 .min(Comparator.comparing(TicketInfo::getPrice))
                 .orElseThrow(NoSuchElementException::new);
+    }
+
+    private String parseUrl(SearchDto searchDto) {
+        return String.format("https://www.aviasales.ru/search/%s0109%s05091", searchDto.getCityFromCode(), searchDto.getCityToCode());
     }
 
     private SendMessage prepareMessageConfig(Long chatId, String text) {
