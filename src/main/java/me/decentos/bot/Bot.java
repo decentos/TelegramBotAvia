@@ -168,7 +168,14 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     private String parseUrl(SearchDto searchDto) {
-        return String.format("https://www.aviasales.ru/search/%s0109%s05091", searchDto.getCityFromCode(), searchDto.getCityToCode());
+        String departDay = searchDto.getDepartDate().substring(8);
+        String departMonth = searchDto.getDepartDate().substring(5, 7);
+        String departDate = String.format("%s%s", departDay, departMonth);
+
+        String returnDay = searchDto.getReturnDate().substring(8);
+        String returnMonth = searchDto.getReturnDate().substring(5, 7);
+        String returnDate = String.format("%s%s", returnDay, returnMonth);
+        return String.format("https://www.aviasales.ru/search/%s%s%s%s1", searchDto.getCityFromCode(), departDate, searchDto.getCityToCode(), returnDate);
     }
 
     private SendMessage prepareMessageConfig(Long chatId, String text) {
