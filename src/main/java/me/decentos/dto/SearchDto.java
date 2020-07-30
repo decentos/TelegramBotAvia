@@ -12,4 +12,6 @@ public class SearchDto {
     private String cityFromCode;
     private String cityTo;
     private String cityToCode;
+    private String departDate;
+    private String returnDate;
 }

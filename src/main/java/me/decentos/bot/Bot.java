@@ -70,13 +70,10 @@ public class Bot extends TelegramLongPollingBot {
         if (search.get(chatId) != null && search.get(chatId).getCityTo() != null) search.remove(chatId);
 
         if (cities == null || cities.length == 0) {
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.enableMarkdown(true);
-            sendMessage.setChatId(chatId);
-            sendMessage.setText("Город введен неверно или в нем отсутствует аэропорт.\nПожалуйста, повторите попытку:");
-            execute(sendMessage);
+            execute(prepareMessageConfig(chatId, "Город введен неверно или в нем отсутствует аэропорт.\nПожалуйста, повторите попытку:"));
         } else if (search.get(chatId) == null) {
-            search.put(chatId, new SearchDto(cities[0].getName(), cities[0].getCode(), null, null));
+            search.put(chatId, new SearchDto(cities[0].getName(), cities[0].getCode(), null, null, null, null));
+
         } else {
             SearchDto searchDto = search.get(chatId);
             searchDto.setCityTo(cities[0].getName());
@@ -87,32 +84,15 @@ public class Bot extends TelegramLongPollingBot {
             TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
 
             if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
-                SendMessage sendNotFound = new SendMessage();
-                sendNotFound.enableMarkdown(true);
-                sendNotFound.setChatId(chatId);
-                sendNotFound.setText("По данному запросу билеты не найдены!\nПожалуйста, повторите попытку с другими параметрами:");
-                execute(sendNotFound);
+                execute(prepareMessageConfig(chatId, "По данному запросу билеты не найдены!\nПожалуйста, повторите попытку с другими параметрами:"));
             } else {
-                SendMessage sendCheapest = new SendMessage();
-                sendCheapest.enableMarkdown(true);
-                sendCheapest.setChatId(chatId);
-                sendCheapest.setText(cheapestTicket.toString());
-                execute(sendCheapest);
+                execute(prepareMessageConfig(chatId, cheapestTicket.toString()));
 
                 if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
                         && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
-                    SendMessage sendNonStop = new SendMessage();
-                    sendNonStop.enableMarkdown(true);
-                    sendNonStop.setChatId(chatId);
-                    sendNonStop.setText(cheapestNonStopTicket.toString());
-                    execute(sendNonStop);
+                    execute(prepareMessageConfig(chatId, cheapestNonStopTicket.toString()));
                 }
-
-                SendMessage sendUrl = new SendMessage();
-                sendUrl.enableMarkdown(true);
-                sendUrl.setChatId(chatId);
-                sendUrl.setText(String.format("https://www.aviasales.ru/search/%s0109%s05091", searchDto.getCityFromCode(), searchDto.getCityToCode()));
-                execute(sendUrl);
+                execute(prepareMessageConfig(chatId, String.format("https://www.aviasales.ru/search/%s0109%s05091", searchDto.getCityFromCode(), searchDto.getCityToCode())));
             }
         }
     }
@@ -151,5 +131,13 @@ public class Bot extends TelegramLongPollingBot {
                 .stream()
                 .min(Comparator.comparing(TicketInfo::getPrice))
                 .orElseThrow(NoSuchElementException::new);
+    }
+
+    private SendMessage prepareMessageConfig(Long chatId, String text) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.enableMarkdown(true);
+        sendMessage.setChatId(chatId);
+        sendMessage.setText(text);
+        return sendMessage;
     }
 }
