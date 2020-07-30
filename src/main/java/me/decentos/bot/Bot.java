@@ -27,22 +27,25 @@ public class Bot extends TelegramLongPollingBot {
     private final String botUserName;
     private final String botToken;
     private final String cityInfoTemplate;
-    private final String token;
     private final String cheapestTicketTemplate;
     private final String nonStopTicketTemplate;
+    private final String token;
     private final RestTemplate restTemplate;
 
     @Autowired
-    public Bot(@Value("${bot.username}") String botUserName, @Value("${bot.token}") String botToken,
-               @Value("${api.cityInfoTemplate}") String cityInfoTemplate, RestTemplate restTemplate,
-               @Value("${api.cheapestTicketTemplate}") String cheapestTicketTemplate, @Value("${api.nonStopTicketTemplate}") String nonStopTicketTemplate,
-               @Value("${api.token}") String token) {
+    public Bot(@Value("${bot.username}") String botUserName,
+               @Value("${bot.token}") String botToken,
+               @Value("${api.cityInfoTemplate}") String cityInfoTemplate,
+               @Value("${api.cheapestTicketTemplate}") String cheapestTicketTemplate,
+               @Value("${api.nonStopTicketTemplate}") String nonStopTicketTemplate,
+               @Value("${api.token}") String token,
+               RestTemplate restTemplate) {
         this.botUserName = botUserName;
         this.botToken = botToken;
         this.cityInfoTemplate = cityInfoTemplate;
-        this.token = token;
         this.cheapestTicketTemplate = cheapestTicketTemplate;
         this.nonStopTicketTemplate = nonStopTicketTemplate;
+        this.token = token;
         this.restTemplate = restTemplate;
     }
 
