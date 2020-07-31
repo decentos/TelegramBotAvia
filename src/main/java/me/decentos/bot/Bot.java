@@ -81,10 +81,12 @@ public class Bot extends TelegramLongPollingBot {
 
         if (text.equals(start)) {
             SendMessage startSearch = prepareMessageConfig(chatId, greeting);
-            setStartButtons(startSearch);
+            setNewSearchButtons(startSearch);
             execute(startSearch);
         } else if (text.equals(search)) {
-            execute(prepareMessageConfig(chatId, cityFrom));
+            SendMessage city = prepareMessageConfig(chatId, cityFrom);
+            setCitiesButtons(city, "Москва", "Санкт-Петербург");
+            execute(city);
         } else if (searchDto == null || searchDto.getCityTo() == null) {
             fillCityInfo(chatId, text, searchDto);
         } else if (searchDto.getReturnDate() == null) {
@@ -110,13 +112,17 @@ public class Bot extends TelegramLongPollingBot {
             searchDto.setCityFrom(cities[0].getName());
             searchDto.setCityFromCode(cities[0].getCode());
             searchMap.put(chatId, searchDto);
-            execute(prepareMessageConfig(chatId, cityTo));
+            SendMessage city = prepareMessageConfig(chatId, cityTo);
+            setCitiesButtons(city, "Санкт-Петербург", "Сочи");
+            execute(city);
         } else if (searchDto.getCityTo() == null) {
             searchDto = searchMap.get(chatId);
             searchDto.setCityTo(cities[0].getName());
             searchDto.setCityToCode(cities[0].getCode());
             searchMap.put(chatId, searchDto);
-            execute(prepareMessageConfig(chatId, dateDepart));
+            SendMessage date = prepareMessageConfig(chatId, dateDepart);
+            setNewSearchButtons(date);
+            execute(date);
         }
     }
 
@@ -230,13 +236,23 @@ public class Bot extends TelegramLongPollingBot {
         return sendMessage;
     }
 
-    public void setStartButtons(SendMessage sendMessage) {
+    public void setNewSearchButtons(SendMessage sendMessage) {
         String search = messageSource.getMessage("search", null, Locale.getDefault());
 
         val replyKeyboardMarkup = new ReplyKeyboardMarkup();
         val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
         val keyboardFirstRow = new KeyboardRow();
         keyboardFirstRow.add(new KeyboardButton(search));
+        keyboard.add(keyboardFirstRow);
+        replyKeyboardMarkup.setKeyboard(keyboard);
+    }
+
+    public void setCitiesButtons(SendMessage sendMessage, String firstCity, String secondCity) {
+        val replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
+        val keyboardFirstRow = new KeyboardRow();
+        keyboardFirstRow.add(new KeyboardButton(firstCity));
+        keyboardFirstRow.add(new KeyboardButton(secondCity));
         keyboard.add(keyboardFirstRow);
         replyKeyboardMarkup.setKeyboard(keyboard);
     }
