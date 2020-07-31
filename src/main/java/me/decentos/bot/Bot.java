@@ -86,10 +86,12 @@ public class Bot extends TelegramLongPollingBot {
         String cityFrom = messageSource.getMessage("city.from", null, Locale.getDefault());
 
         if (text.equals(start)) {
+            searchMap.remove(chatId);
             SendMessage startSearch = prepareMessageConfig(chatId, greeting);
             setNewSearchButtons(startSearch);
             execute(startSearch);
         } else if (text.equals(search)) {
+            searchMap.remove(chatId);
             SendMessage city = prepareMessageConfig(chatId, cityFrom);
             setCitiesButtons(city, "Москва", "Санкт-Петербург");
             execute(city);
@@ -283,12 +285,19 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     public void setCitiesButtons(SendMessage sendMessage, String firstCity, String secondCity) {
+        String search = messageSource.getMessage("search", null, Locale.getDefault());
+
         val replyKeyboardMarkup = new ReplyKeyboardMarkup();
         val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
         val keyboardFirstRow = new KeyboardRow();
         keyboardFirstRow.add(new KeyboardButton(firstCity));
         keyboardFirstRow.add(new KeyboardButton(secondCity));
+
+        val keyboardSecondRow = new KeyboardRow();
+        keyboardSecondRow.add(new KeyboardButton(search));
+
         keyboard.add(keyboardFirstRow);
+        keyboard.add(keyboardSecondRow);
         replyKeyboardMarkup.setKeyboard(keyboard);
     }
 
