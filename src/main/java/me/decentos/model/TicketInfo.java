@@ -6,6 +6,7 @@ import lombok.Data;
 public class TicketInfo {
     private int price;
     private String airline;
+    private String airlineName;
     private int flightNumber;
     private String departureAt;
     private String returnAt;

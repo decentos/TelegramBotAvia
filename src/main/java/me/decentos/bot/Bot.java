@@ -4,9 +4,12 @@ import com.google.gson.Gson;
 import lombok.SneakyThrows;
 import lombok.val;
 import me.decentos.dto.SearchDto;
+import me.decentos.model.AirlinesInfo;
 import me.decentos.model.CityInfo;
 import me.decentos.model.SearchTicketResult;
 import me.decentos.model.TicketInfo;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,28 +34,31 @@ public class Bot extends TelegramLongPollingBot {
 
     private final String botUserName;
     private final String botToken;
+    private final String travelPayoutsToken;
     private final String cityInfoTemplate;
     private final String cheapestTicketTemplate;
     private final String nonStopTicketTemplate;
-    private final String token;
+    private final String airlinesInfoTemplate;
     private final RestTemplate restTemplate;
     private final MessageSource messageSource;
 
     @Autowired
     public Bot(@Value("${bot.username}") String botUserName,
                @Value("${bot.token}") String botToken,
+               @Value("${api.travelPayoutsToken}") String travelPayoutsToken,
                @Value("${api.cityInfoTemplate}") String cityInfoTemplate,
                @Value("${api.cheapestTicketTemplate}") String cheapestTicketTemplate,
                @Value("${api.nonStopTicketTemplate}") String nonStopTicketTemplate,
-               @Value("${api.token}") String token,
+               @Value("${api.airlinesInfoTemplate}") String airlinesInfoTemplate,
                RestTemplate restTemplate,
                MessageSource messageSource) {
         this.botUserName = botUserName;
         this.botToken = botToken;
+        this.travelPayoutsToken = travelPayoutsToken;
         this.cityInfoTemplate = cityInfoTemplate;
         this.cheapestTicketTemplate = cheapestTicketTemplate;
         this.nonStopTicketTemplate = nonStopTicketTemplate;
-        this.token = token;
+        this.airlinesInfoTemplate = airlinesInfoTemplate;
         this.restTemplate = restTemplate;
         this.messageSource = messageSource;
     }
@@ -151,12 +157,16 @@ public class Bot extends TelegramLongPollingBot {
         TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
         searchMap.remove(chatId);
 
+
         if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
             execute(prepareMessageConfig(chatId, ticketNotfound));
         } else {
+            String airlinesName = getAirlinesName(cheapestTicket);
+            cheapestTicket.setAirlineName(airlinesName);
+
             String ticketCheapest = messageSource.getMessage("ticket.cheapest",
                     new Object[]{cheapestTicket.getPrice(),
-                            cheapestTicket.getAirline(),
+                            cheapestTicket.getAirlineName(),
                             String.format("%s-%s", cheapestTicket.getAirline(), cheapestTicket.getFlightNumber()),
                             cheapestTicket.getDepartureAt().substring(11, 16),
                             cheapestTicket.getReturnAt().substring(11, 16)},
@@ -166,9 +176,12 @@ public class Bot extends TelegramLongPollingBot {
 
             if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
                     && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
+                airlinesName = getAirlinesName(cheapestNonStopTicket);
+                cheapestNonStopTicket.setAirlineName(airlinesName);
+
                 String ticketNonstop = messageSource.getMessage("ticket.nonstop",
                         new Object[]{cheapestNonStopTicket.getPrice(),
-                                cheapestNonStopTicket.getAirline(),
+                                cheapestNonStopTicket.getAirlineName(),
                                 String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
                                 cheapestNonStopTicket.getDepartureAt().substring(11, 16),
                                 cheapestNonStopTicket.getReturnAt().substring(11, 16)},
@@ -181,13 +194,30 @@ public class Bot extends TelegramLongPollingBot {
         }
     }
 
+    private String getAirlinesName(TicketInfo ticketInfo) {
+        Map<String, String> urlParams = new HashMap<>();
+        urlParams.put("IATA_CODE", ticketInfo.getAirline());
+        ResponseEntity<AirlinesInfo> airlinesInfoResponse = restTemplate.getForEntity(airlinesInfoTemplate, AirlinesInfo.class, urlParams);
+        AirlinesInfo airlines = airlinesInfoResponse.getBody();
+        if (airlines == null) return ticketInfo.getAirline();
+
+        String dataToJson = gson.toJson(airlines);
+        if (dataToJson.equals("{}")) return ticketInfo.getAirline();
+
+        JSONObject dataJson = new JSONObject(dataToJson);
+        JSONArray airlinesArr = dataJson.getJSONArray("response");
+        JSONObject airlinesName = airlinesArr.getJSONObject(0);
+
+        return airlinesName.get("name").toString();
+    }
+
     private TicketInfo findTicket(SearchDto searchDto, String template) {
         Map<String, String> codeParams = new HashMap<>();
         codeParams.put("CITY_FROM_CODE", searchDto.getCityFromCode());
         codeParams.put("CITY_TO_CODE", searchDto.getCityToCode());
         codeParams.put("DEPART_DATE", searchDto.getDepartDate());
         codeParams.put("RETURN_DATE", searchDto.getReturnDate());
-        codeParams.put("TOKEN", token);
+        codeParams.put("TOKEN", travelPayoutsToken);
 
         ResponseEntity<SearchTicketResult> searchTicketResultResponse = restTemplate.getForEntity(template, SearchTicketResult.class, codeParams);
         SearchTicketResult searchTicketResult = searchTicketResultResponse.getBody();
@@ -201,7 +231,12 @@ public class Bot extends TelegramLongPollingBot {
         List<TicketInfo> ticketInfoList = new ArrayList<>();
 
         for (int i = 0; i < ticketsByCity.length(); i++) {
-            JSONObject ticketOptions = ticketsByCity.getJSONObject(String.valueOf(i));
+            JSONObject ticketOptions;
+            try {
+                ticketOptions = ticketsByCity.getJSONObject(String.valueOf(i));
+            } catch (JSONException ex) {
+                ticketOptions = ticketsByCity.getJSONObject(String.valueOf(++i));
+            }
             TicketInfo ticketInfo = new TicketInfo();
             ticketInfo.setPrice((int) ticketOptions.get("price"));
             ticketInfo.setAirline(ticketOptions.get("airline").toString());

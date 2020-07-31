@@ -3,7 +3,8 @@ bot:
   token: 1193810356:AAHWu_pDjOouPUEZRCRRBKoVLiR417bjKsk
 
 api:
-  token: fa1e465f4be56cf6f882f865650d9434
+  travelPayoutsToken: fa1e465f4be56cf6f882f865650d9434
   cityInfoTemplate: http://autocomplete.travelpayouts.com/places2?term={CITY}&locale=ru&types[]=city
   cheapestTicketTemplate: http://api.travelpayouts.com/v1/prices/cheap?origin={CITY_FROM_CODE}&destination={CITY_TO_CODE}&depart_date={DEPART_DATE}&return_date={RETURN_DATE}&token={TOKEN}
   nonStopTicketTemplate: http://api.travelpayouts.com/v1/prices/direct?origin={CITY_FROM_CODE}&destination={CITY_TO_CODE}&depart_date={DEPART_DATE}&return_date={RETURN_DATE}&token={TOKEN}
+  airlinesInfoTemplate: http://airlabs.co/api/v7/airlines?iata_code={IATA_CODE}&api_key=73144a50-d6d1-4b77-8f4d-165c47e61b76
