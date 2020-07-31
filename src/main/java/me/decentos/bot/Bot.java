@@ -152,8 +152,8 @@ public class Bot extends TelegramLongPollingBot {
                     new Object[]{cheapestTicket.getPrice(),
                             cheapestTicket.getAirline(),
                             String.format("%s-%s", cheapestTicket.getAirline(), cheapestTicket.getFlightNumber()),
-                            cheapestTicket.getDepartureAt(),
-                            cheapestTicket.getReturnAt()},
+                            cheapestTicket.getDepartureAt().substring(11, 16),
+                            cheapestTicket.getReturnAt().substring(11, 16)},
                     Locale.getDefault());
 
             execute(prepareMessageConfig(chatId, ticketCheapest));
@@ -164,8 +164,8 @@ public class Bot extends TelegramLongPollingBot {
                         new Object[]{cheapestNonStopTicket.getPrice(),
                                 cheapestNonStopTicket.getAirline(),
                                 String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
-                                cheapestNonStopTicket.getDepartureAt(),
-                                cheapestNonStopTicket.getReturnAt()},
+                                cheapestNonStopTicket.getDepartureAt().substring(11, 16),
+                                cheapestNonStopTicket.getReturnAt().substring(11, 16)},
                         Locale.getDefault());
 
                 execute(prepareMessageConfig(chatId, ticketNonstop));
