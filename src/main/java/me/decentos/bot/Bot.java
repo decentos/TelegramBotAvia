@@ -2,6 +2,7 @@ package me.decentos.bot;
 
 import com.google.gson.Gson;
 import lombok.SneakyThrows;
+import lombok.val;
 import me.decentos.dto.SearchDto;
 import me.decentos.model.CityInfo;
 import me.decentos.model.SearchTicketResult;
@@ -9,12 +10,16 @@ import me.decentos.model.TicketInfo;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.*;
 
@@ -31,6 +36,7 @@ public class Bot extends TelegramLongPollingBot {
     private final String nonStopTicketTemplate;
     private final String token;
     private final RestTemplate restTemplate;
+    private final MessageSource messageSource;
 
     @Autowired
     public Bot(@Value("${bot.username}") String botUserName,
@@ -39,7 +45,8 @@ public class Bot extends TelegramLongPollingBot {
                @Value("${api.cheapestTicketTemplate}") String cheapestTicketTemplate,
                @Value("${api.nonStopTicketTemplate}") String nonStopTicketTemplate,
                @Value("${api.token}") String token,
-               RestTemplate restTemplate) {
+               RestTemplate restTemplate,
+               MessageSource messageSource) {
         this.botUserName = botUserName;
         this.botToken = botToken;
         this.cityInfoTemplate = cityInfoTemplate;
@@ -47,6 +54,7 @@ public class Bot extends TelegramLongPollingBot {
         this.nonStopTicketTemplate = nonStopTicketTemplate;
         this.token = token;
         this.restTemplate = restTemplate;
+        this.messageSource = messageSource;
     }
 
     @Override
@@ -66,8 +74,17 @@ public class Bot extends TelegramLongPollingBot {
         String text = update.getMessage().getText();
         SearchDto searchDto = search.get(chatId);
 
-        if (update.getMessage().getText().equals("Начать новый поиск")) {
-            execute(prepareMessageConfig(chatId, "Введите город отправления:"));
+        String start = messageSource.getMessage("start", null, Locale.getDefault());
+        String greeting = messageSource.getMessage("greeting", null, Locale.getDefault());
+        String search = messageSource.getMessage("search", null, Locale.getDefault());
+        String cityFrom = messageSource.getMessage("city.from", null, Locale.getDefault());
+
+        if (text.equals(start)) {
+            SendMessage startSearch = prepareMessageConfig(chatId, greeting);
+            setStartButtons(startSearch);
+            execute(startSearch);
+        } else if (text.equals(search)) {
+            execute(prepareMessageConfig(chatId, cityFrom));
         } else if (searchDto == null || searchDto.getCityTo() == null) {
             fillCityInfo(chatId, text, searchDto);
         } else if (searchDto.getReturnDate() == null) {
@@ -77,35 +94,41 @@ public class Bot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private void fillCityInfo(Long chatId, String text, SearchDto searchDto) {
+        String cityNotfound = messageSource.getMessage("city.notfound", null, Locale.getDefault());
+        String cityTo = messageSource.getMessage("city.to", null, Locale.getDefault());
+        String dateDepart = messageSource.getMessage("date.depart", null, Locale.getDefault());
+
         Map<String, String> urlParams = new HashMap<>();
         urlParams.put("CITY", text);
         ResponseEntity<CityInfo[]> cityInfoResponse = restTemplate.getForEntity(cityInfoTemplate, CityInfo[].class, urlParams);
         CityInfo[] cities = cityInfoResponse.getBody();
 
         if (cities == null || cities.length == 0) {
-            execute(prepareMessageConfig(chatId, "Город введен неверно или в нем отсутствует аэропорт.\nПожалуйста, повторите попытку:"));
+            execute(prepareMessageConfig(chatId, cityNotfound));
         } else if (searchDto == null) {
             searchDto = new SearchDto();
             searchDto.setCityFrom(cities[0].getName());
             searchDto.setCityFromCode(cities[0].getCode());
             search.put(chatId, searchDto);
-            execute(prepareMessageConfig(chatId, "Введите город назначения:"));
+            execute(prepareMessageConfig(chatId, cityTo));
         } else if (searchDto.getCityTo() == null) {
             searchDto = search.get(chatId);
             searchDto.setCityTo(cities[0].getName());
             searchDto.setCityToCode(cities[0].getCode());
             search.put(chatId, searchDto);
-            execute(prepareMessageConfig(chatId, "Введите дату отправления в формате YYYY-MM-DD:"));
+            execute(prepareMessageConfig(chatId, dateDepart));
         }
     }
 
     @SneakyThrows
     private void fillDateInfo(Long chatId, String text, SearchDto searchDto) {
+        String dateReturn = messageSource.getMessage("date.return", null, Locale.getDefault());
+
         if (searchDto.getDepartDate() == null) {
             searchDto = search.get(chatId);
             searchDto.setDepartDate(text);
             search.put(chatId, searchDto);
-            execute(prepareMessageConfig(chatId, "Введите дату возвращения в формате YYYY-MM-DD:"));
+            execute(prepareMessageConfig(chatId, dateReturn));
         } else {
             searchDto = search.get(chatId);
             searchDto.setReturnDate(text);
@@ -116,18 +139,36 @@ public class Bot extends TelegramLongPollingBot {
 
     @SneakyThrows
     private void findTickets(Long chatId, SearchDto searchDto) {
+        String ticketNotfound = messageSource.getMessage("ticket.notfound", null, Locale.getDefault());
+
         TicketInfo cheapestTicket = findTicket(searchDto, cheapestTicketTemplate);
         TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
         search.remove(chatId);
 
         if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
-            execute(prepareMessageConfig(chatId, "По данному запросу билеты не найдены!\nПожалуйста, повторите попытку с другими параметрами:"));
+            execute(prepareMessageConfig(chatId, ticketNotfound));
         } else {
-            execute(prepareMessageConfig(chatId, cheapestTicket.toString()));
+            String ticketCheapest = messageSource.getMessage("ticket.cheapest",
+                    new Object[]{cheapestTicket.getPrice(),
+                            cheapestTicket.getAirline(),
+                            String.format("%s-%s", cheapestTicket.getAirline(), cheapestTicket.getFlightNumber()),
+                            cheapestTicket.getDepartureAt(),
+                            cheapestTicket.getReturnAt()},
+                    Locale.getDefault());
+
+            execute(prepareMessageConfig(chatId, ticketCheapest));
 
             if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
                     && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
-                execute(prepareMessageConfig(chatId, cheapestNonStopTicket.toString()));
+                String ticketNonstop = messageSource.getMessage("ticket.nonstop",
+                        new Object[]{cheapestNonStopTicket.getPrice(),
+                                cheapestNonStopTicket.getAirline(),
+                                String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
+                                cheapestNonStopTicket.getDepartureAt(),
+                                cheapestNonStopTicket.getReturnAt()},
+                        Locale.getDefault());
+
+                execute(prepareMessageConfig(chatId, ticketNonstop));
             }
             String url = parseUrl(searchDto);
             execute(prepareMessageConfig(chatId, url));
@@ -187,5 +228,24 @@ public class Bot extends TelegramLongPollingBot {
         sendMessage.setChatId(chatId);
         sendMessage.setText(text);
         return sendMessage;
+    }
+
+    public void setStartButtons(SendMessage sendMessage) {
+        String search = messageSource.getMessage("search", null, Locale.getDefault());
+
+        val replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
+        val keyboardFirstRow = new KeyboardRow();
+        keyboardFirstRow.add(new KeyboardButton(search));
+        keyboard.add(keyboardFirstRow);
+        replyKeyboardMarkup.setKeyboard(keyboard);
+    }
+
+    private List<KeyboardRow> createKeyboardTemplate(ReplyKeyboardMarkup replyKeyboardMarkup, SendMessage sendMessage) {
+        sendMessage.setReplyMarkup(replyKeyboardMarkup);
+        replyKeyboardMarkup.setSelective(true);
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(false);
+        return new ArrayList<>();
     }
 }

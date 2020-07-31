@@ -13,7 +13,7 @@ public class AppConfig {
     @Bean
     MessageSource messageSource() {
         ReloadableResourceBundleMessageSource messageSource = new ReloadableResourceBundleMessageSource();
-        messageSource.setBasename("i18n/bundle");
+        messageSource.setBasename("classpath:i18n/bundle");
         messageSource.setDefaultEncoding("UTF-8");
         return messageSource;
     }
