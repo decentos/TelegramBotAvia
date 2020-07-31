@@ -26,7 +26,7 @@ import java.util.*;
 @Component
 public class Bot extends TelegramLongPollingBot {
 
-    private final Map<Long, SearchDto> search = new HashMap<>();
+    private final Map<Long, SearchDto> searchMap = new HashMap<>();
     private final Gson gson = new Gson();
 
     private final String botUserName;
@@ -72,7 +72,7 @@ public class Bot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         Long chatId = update.getMessage().getChatId();
         String text = update.getMessage().getText();
-        SearchDto searchDto = search.get(chatId);
+        SearchDto searchDto = searchMap.get(chatId);
 
         String start = messageSource.getMessage("start", null, Locale.getDefault());
         String greeting = messageSource.getMessage("greeting", null, Locale.getDefault());
@@ -109,13 +109,13 @@ public class Bot extends TelegramLongPollingBot {
             searchDto = new SearchDto();
             searchDto.setCityFrom(cities[0].getName());
             searchDto.setCityFromCode(cities[0].getCode());
-            search.put(chatId, searchDto);
+            searchMap.put(chatId, searchDto);
             execute(prepareMessageConfig(chatId, cityTo));
         } else if (searchDto.getCityTo() == null) {
-            searchDto = search.get(chatId);
+            searchDto = searchMap.get(chatId);
             searchDto.setCityTo(cities[0].getName());
             searchDto.setCityToCode(cities[0].getCode());
-            search.put(chatId, searchDto);
+            searchMap.put(chatId, searchDto);
             execute(prepareMessageConfig(chatId, dateDepart));
         }
     }
@@ -125,14 +125,14 @@ public class Bot extends TelegramLongPollingBot {
         String dateReturn = messageSource.getMessage("date.return", null, Locale.getDefault());
 
         if (searchDto.getDepartDate() == null) {
-            searchDto = search.get(chatId);
+            searchDto = searchMap.get(chatId);
             searchDto.setDepartDate(text);
-            search.put(chatId, searchDto);
+            searchMap.put(chatId, searchDto);
             execute(prepareMessageConfig(chatId, dateReturn));
         } else {
-            searchDto = search.get(chatId);
+            searchDto = searchMap.get(chatId);
             searchDto.setReturnDate(text);
-            search.put(chatId, searchDto);
+            searchMap.put(chatId, searchDto);
             findTickets(chatId, searchDto);
         }
     }
@@ -143,7 +143,7 @@ public class Bot extends TelegramLongPollingBot {
 
         TicketInfo cheapestTicket = findTicket(searchDto, cheapestTicketTemplate);
         TicketInfo cheapestNonStopTicket = findTicket(searchDto, nonStopTicketTemplate);
-        search.remove(chatId);
+        searchMap.remove(chatId);
 
         if (cheapestTicket.getPrice() == 0 && cheapestNonStopTicket.getPrice() == 0) {
             execute(prepareMessageConfig(chatId, ticketNotfound));
