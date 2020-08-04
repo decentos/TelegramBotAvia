@@ -2,12 +2,12 @@ package me.decentos.bot;
 
 import com.google.gson.Gson;
 import lombok.SneakyThrows;
-import lombok.val;
 import me.decentos.dto.SearchDto;
 import me.decentos.model.AirlinesInfo;
 import me.decentos.model.CityInfo;
 import me.decentos.model.SearchTicketResult;
 import me.decentos.model.TicketInfo;
+import me.decentos.service.ButtonService;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -20,9 +20,6 @@ import org.springframework.web.client.RestTemplate;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.*;
 
@@ -40,6 +37,7 @@ public class Bot extends TelegramLongPollingBot {
     private final String nonStopTicketTemplate;
     private final String airlinesInfoTemplate;
     private final RestTemplate restTemplate;
+    private final ButtonService buttonService;
     private final MessageSource messageSource;
 
     @Autowired
@@ -51,6 +49,7 @@ public class Bot extends TelegramLongPollingBot {
                @Value("${api.nonStopTicketTemplate}") String nonStopTicketTemplate,
                @Value("${api.airlinesInfoTemplate}") String airlinesInfoTemplate,
                RestTemplate restTemplate,
+               ButtonService buttonService,
                MessageSource messageSource) {
         this.botUserName = botUserName;
         this.botToken = botToken;
@@ -60,6 +59,7 @@ public class Bot extends TelegramLongPollingBot {
         this.nonStopTicketTemplate = nonStopTicketTemplate;
         this.airlinesInfoTemplate = airlinesInfoTemplate;
         this.restTemplate = restTemplate;
+        this.buttonService = buttonService;
         this.messageSource = messageSource;
     }
 
@@ -88,12 +88,12 @@ public class Bot extends TelegramLongPollingBot {
         if (text.equals(start)) {
             searchMap.remove(chatId);
             SendMessage startSearch = prepareMessageConfig(chatId, greeting);
-            setNewSearchButtons(startSearch);
+            buttonService.setNewSearchButtons(startSearch);
             execute(startSearch);
         } else if (text.equals(search)) {
             searchMap.remove(chatId);
             SendMessage city = prepareMessageConfig(chatId, cityFrom);
-            setCitiesButtons(city, "Москва", "Санкт-Петербург");
+            buttonService.setCitiesButtons(city, "Москва", "Санкт-Петербург");
             execute(city);
         } else if (searchDto == null || searchDto.getCityTo() == null) {
             fillCityInfo(chatId, text, searchDto);
@@ -121,7 +121,7 @@ public class Bot extends TelegramLongPollingBot {
             searchDto.setCityFromCode(cities[0].getCode());
             searchMap.put(chatId, searchDto);
             SendMessage city = prepareMessageConfig(chatId, cityTo);
-            setCitiesButtons(city, "Санкт-Петербург", "Сочи");
+            buttonService.setCitiesButtons(city, "Санкт-Петербург", "Сочи");
             execute(city);
         } else if (searchDto.getCityTo() == null) {
             searchDto = searchMap.get(chatId);
@@ -129,7 +129,7 @@ public class Bot extends TelegramLongPollingBot {
             searchDto.setCityToCode(cities[0].getCode());
             searchMap.put(chatId, searchDto);
             SendMessage date = prepareMessageConfig(chatId, dateDepart);
-            setNewSearchButtons(date);
+            buttonService.setNewSearchButtons(date);
             execute(date);
         }
     }
@@ -271,41 +271,5 @@ public class Bot extends TelegramLongPollingBot {
         sendMessage.setChatId(chatId);
         sendMessage.setText(text);
         return sendMessage;
-    }
-
-    public void setNewSearchButtons(SendMessage sendMessage) {
-        String search = messageSource.getMessage("search", null, Locale.getDefault());
-
-        val replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
-        val keyboardFirstRow = new KeyboardRow();
-        keyboardFirstRow.add(new KeyboardButton(search));
-        keyboard.add(keyboardFirstRow);
-        replyKeyboardMarkup.setKeyboard(keyboard);
-    }
-
-    public void setCitiesButtons(SendMessage sendMessage, String firstCity, String secondCity) {
-        String search = messageSource.getMessage("search", null, Locale.getDefault());
-
-        val replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        val keyboard = createKeyboardTemplate(replyKeyboardMarkup, sendMessage);
-        val keyboardFirstRow = new KeyboardRow();
-        keyboardFirstRow.add(new KeyboardButton(firstCity));
-        keyboardFirstRow.add(new KeyboardButton(secondCity));
-
-        val keyboardSecondRow = new KeyboardRow();
-        keyboardSecondRow.add(new KeyboardButton(search));
-
-        keyboard.add(keyboardFirstRow);
-        keyboard.add(keyboardSecondRow);
-        replyKeyboardMarkup.setKeyboard(keyboard);
-    }
-
-    private List<KeyboardRow> createKeyboardTemplate(ReplyKeyboardMarkup replyKeyboardMarkup, SendMessage sendMessage) {
-        sendMessage.setReplyMarkup(replyKeyboardMarkup);
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(false);
-        return new ArrayList<>();
     }
 }
