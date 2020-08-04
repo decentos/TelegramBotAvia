@@ -11,6 +11,3 @@ public class Main {
         SpringApplication.run(Main.class, args);
     }
 }
-
-// TODO ApiService
-// TODO FindTicketsService refactoring
