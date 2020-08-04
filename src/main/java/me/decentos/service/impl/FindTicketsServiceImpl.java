@@ -7,6 +7,7 @@ import me.decentos.dto.SearchDto;
 import me.decentos.model.AirlinesInfo;
 import me.decentos.model.SearchTicketResult;
 import me.decentos.model.TicketInfo;
+import me.decentos.service.ApiService;
 import me.decentos.service.FindTicketsService;
 import me.decentos.service.PrepareMessageService;
 import org.json.JSONArray;
@@ -14,9 +15,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.*;
@@ -25,22 +24,16 @@ import java.util.*;
 @Service
 public class FindTicketsServiceImpl implements FindTicketsService {
 
+    private final ApiService apiService;
     private final PrepareMessageService prepareMessageService;
     private final MessageSource messageSource;
-    private final RestTemplate restTemplate;
     private final Gson gson;
-
-    @Value("${api.travelPayoutsToken}")
-    private String travelPayoutsToken;
 
     @Value("${api.cheapestTicketTemplate}")
     private String cheapestTicketTemplate;
 
     @Value("${api.nonStopTicketTemplate}")
     private String nonStopTicketTemplate;
-
-    @Value("${api.airlinesInfoTemplate}")
-    private String airlinesInfoTemplate;
 
     @Override
     public void findTickets(Long chatId, SearchDto searchDto, Map<Long, SearchDto> searchMap, Bot bot) throws TelegramApiException {
@@ -56,30 +49,14 @@ public class FindTicketsServiceImpl implements FindTicketsService {
         } else {
             String airlinesName = getAirlinesName(cheapestTicket);
             cheapestTicket.setAirlineName(airlinesName);
-
-            String ticketCheapest = messageSource.getMessage("ticket.cheapest",
-                    new Object[]{cheapestTicket.getPrice(),
-                            cheapestTicket.getAirlineName(),
-                            String.format("%s-%s", cheapestTicket.getAirline(), cheapestTicket.getFlightNumber()),
-                            cheapestTicket.getDepartureAt().substring(11, 16),
-                            cheapestTicket.getReturnAt().substring(11, 16)},
-                    Locale.getDefault());
-
+            String ticketCheapest = prepareTicket(cheapestTicket, "ticket.cheapest");
             bot.execute(prepareMessageService.prepareMessageConfig(chatId, ticketCheapest));
 
             if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
                     && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
                 airlinesName = getAirlinesName(cheapestNonStopTicket);
                 cheapestNonStopTicket.setAirlineName(airlinesName);
-
-                String ticketNonstop = messageSource.getMessage("ticket.nonstop",
-                        new Object[]{cheapestNonStopTicket.getPrice(),
-                                cheapestNonStopTicket.getAirlineName(),
-                                String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
-                                cheapestNonStopTicket.getDepartureAt().substring(11, 16),
-                                cheapestNonStopTicket.getReturnAt().substring(11, 16)},
-                        Locale.getDefault());
-
+                String ticketNonstop = prepareTicket(cheapestNonStopTicket, "ticket.nonstop");
                 bot.execute(prepareMessageService.prepareMessageConfig(chatId, ticketNonstop));
             }
             String url = parseUrl(searchDto);
@@ -87,11 +64,18 @@ public class FindTicketsServiceImpl implements FindTicketsService {
         }
     }
 
+    private String prepareTicket(TicketInfo cheapestNonStopTicket, String messageTemplate) {
+        return messageSource.getMessage(messageTemplate,
+                new Object[]{cheapestNonStopTicket.getPrice(),
+                        cheapestNonStopTicket.getAirlineName(),
+                        String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
+                        cheapestNonStopTicket.getDepartureAt().substring(11, 16),
+                        cheapestNonStopTicket.getReturnAt().substring(11, 16)},
+                Locale.getDefault());
+    }
+
     private String getAirlinesName(TicketInfo ticketInfo) {
-        Map<String, String> urlParams = new HashMap<>();
-        urlParams.put("IATA_CODE", ticketInfo.getAirline());
-        ResponseEntity<AirlinesInfo> airlinesInfoResponse = restTemplate.getForEntity(airlinesInfoTemplate, AirlinesInfo.class, urlParams);
-        AirlinesInfo airlines = airlinesInfoResponse.getBody();
+        AirlinesInfo airlines = apiService.getAirlinesInfo(ticketInfo);
         if (airlines == null) return ticketInfo.getAirline();
 
         String dataToJson = gson.toJson(airlines);
@@ -105,15 +89,7 @@ public class FindTicketsServiceImpl implements FindTicketsService {
     }
 
     private TicketInfo findTicket(SearchDto searchDto, String template) {
-        Map<String, String> codeParams = new HashMap<>();
-        codeParams.put("CITY_FROM_CODE", searchDto.getCityFromCode());
-        codeParams.put("CITY_TO_CODE", searchDto.getCityToCode());
-        codeParams.put("DEPART_DATE", searchDto.getDepartDate());
-        codeParams.put("RETURN_DATE", searchDto.getReturnDate());
-        codeParams.put("TOKEN", travelPayoutsToken);
-
-        ResponseEntity<SearchTicketResult> searchTicketResultResponse = restTemplate.getForEntity(template, SearchTicketResult.class, codeParams);
-        SearchTicketResult searchTicketResult = searchTicketResultResponse.getBody();
+        SearchTicketResult searchTicketResult = apiService.getSearchTicketResult(searchDto, template);
         if (searchTicketResult == null) return new TicketInfo();
 
         String dataToJson = gson.toJson(searchTicketResult.getData());
