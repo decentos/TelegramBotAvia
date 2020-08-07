@@ -28,10 +28,12 @@ public class CityInfoRequestHandler implements RequestHandler {
 
     @Override
     public void handle(String text, Update update, Map<Long, SearchDto> searchMap, Bot bot) throws TelegramApiException {
+        String start = messageSource.getMessage("start", null, Locale.getDefault());
+        String end = messageSource.getMessage("end", null, Locale.getDefault());
         String search = messageSource.getMessage("search", null, Locale.getDefault());
         Long chatId = update.getMessage().getChatId();
         SearchDto searchDto = searchMap.get(chatId);
-        if (text.equals(search) || !(searchDto == null || searchDto.getCityTo() == null)) return;
+        if (text.equals(start) ||text.equals(end) || text.equals(search) || !(searchDto == null || searchDto.getCityTo() == null)) return;
 
         String cityNotfound = messageSource.getMessage("city.notfound", null, Locale.getDefault());
         String cityTo = messageSource.getMessage("city.to", null, Locale.getDefault());

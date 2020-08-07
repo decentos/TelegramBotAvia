@@ -25,8 +25,10 @@ public class SearchRequestHandler implements RequestHandler {
 
     @Override
     public void handle(String text, Update update, Map<Long, SearchDto> searchMap, Bot bot) throws TelegramApiException {
+        String start = messageSource.getMessage("start", null, Locale.getDefault());
+        String end = messageSource.getMessage("end", null, Locale.getDefault());
         String search = messageSource.getMessage("search", null, Locale.getDefault());
-        if (!text.equals(search)) return;
+        if (text.equals(start) ||text.equals(end) || !text.equals(search)) return;
 
         String cityFrom = messageSource.getMessage("city.from", null, Locale.getDefault());
         Long chatId = update.getMessage().getChatId();
