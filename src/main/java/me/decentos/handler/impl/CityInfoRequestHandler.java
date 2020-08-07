@@ -42,6 +42,7 @@ public class CityInfoRequestHandler implements RequestHandler {
         CityInfo[] cities = apiService.getCityInfo(text);
 
         if (cities == null || cities.length == 0) {
+            searchMap.remove(chatId);
             bot.execute(prepareMessageService.prepareMessageConfig(chatId, cityNotfound));
         } else if (searchDto == null) {
             searchDto = new SearchDto();

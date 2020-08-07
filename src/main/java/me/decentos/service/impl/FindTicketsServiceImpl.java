@@ -49,8 +49,10 @@ public class FindTicketsServiceImpl implements FindTicketsService {
             String ticketCheapest = utils.prepareTicket(cheapestTicket, "ticket.cheapest");
             bot.execute(prepareMessageService.prepareMessageConfig(chatId, ticketCheapest));
 
-            if (cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
-                    && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()) {
+            if (cheapestNonStopTicket.getPrice() != 0
+                    && cheapestTicket.getPrice() != cheapestNonStopTicket.getPrice()
+                    && cheapestTicket.getFlightNumber() != cheapestNonStopTicket.getFlightNumber()
+            ) {
                 airlinesName = getAirlinesName(cheapestNonStopTicket);
                 cheapestNonStopTicket.setAirlineName(airlinesName);
                 String ticketNonstop = utils.prepareTicket(cheapestNonStopTicket, "ticket.nonstop");

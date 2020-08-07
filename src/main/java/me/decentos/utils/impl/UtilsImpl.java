@@ -23,13 +23,13 @@ public class UtilsImpl implements Utils {
     private final Gson gson;
 
     @Override
-    public String prepareTicket(TicketInfo cheapestNonStopTicket, String messageTemplate) {
+    public String prepareTicket(TicketInfo ticketInfo, String messageTemplate) {
         return messageSource.getMessage(messageTemplate,
-                new Object[]{cheapestNonStopTicket.getPrice(),
-                        cheapestNonStopTicket.getAirlineName(),
-                        String.format("%s-%s", cheapestNonStopTicket.getAirline(), cheapestNonStopTicket.getFlightNumber()),
-                        cheapestNonStopTicket.getDepartureAt().substring(11, 16),
-                        cheapestNonStopTicket.getReturnAt().substring(11, 16)},
+                new Object[]{ticketInfo.getPrice(),
+                        ticketInfo.getAirlineName(),
+                        String.format("%s-%s", ticketInfo.getAirline(), ticketInfo.getFlightNumber()),
+                        ticketInfo.getDepartureAt().substring(11, 16),
+                        ticketInfo.getReturnAt().substring(11, 16)},
                 Locale.getDefault());
     }
 
