@@ -1,2 +1,2 @@
 # TelegramBotAvia
-Telegram Bot for search for flights
+Telegram bot for flight search
